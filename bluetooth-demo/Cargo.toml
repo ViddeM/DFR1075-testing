@@ -1,0 +1,34 @@
+[package]
+name = "bluetooth-demo"
+version = "0.1.0"
+authors = ["vidde"]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+embassy-executor = { version = "0.6.0", features = ["task-arena-size-40960"] }
+esp-backtrace = { version = "0.13.0", features = [
+    "esp32c6",
+    "exception-handler",
+    "panic-handler",
+    "println",
+] }
+esp-hal = { version = "0.19.0", features = [ "esp32c6" ] }
+esp-hal-embassy = { version = "0.2.0", features = ["esp32c6", "log"] }
+esp-println = { version = "0.10.0", features = ["esp32c6", "log"] }
+esp-wifi = { version = "0.7.1", features = ["esp32c6", "ble"] }
+log = { version = "0.4.21" }
+
+[profile.dev]
+# Rust debug is too slow.
+# For debug builds always builds with some optimization
+opt-level = "s"
+
+[profile.release]
+codegen-units = 1 # LLVM can perform better optimizations using a single thread
+debug = 2
+debug-assertions = false
+incremental = false
+lto = 'fat'
+opt-level = 's'
+overflow-checks = false
