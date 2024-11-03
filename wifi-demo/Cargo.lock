@@ -451,6 +451,7 @@ dependencies = [
  "cfg-if",
  "critical-section",
  "embedded-io",
+ "enumset",
  "esp-build",
  "esp-hal",
  "esp-hal-embassy",
@@ -461,6 +462,7 @@ dependencies = [
  "libm",
  "linked_list_allocator",
  "log",
+ "no-std-net",
  "num-derive",
  "num-traits",
  "portable-atomic",
@@ -661,6 +663,12 @@ name = "nb"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d5439c4ad607c3c23abf66de8c8bf57ba8adcd1f129e699851a6e43935d339d"
+
+[[package]]
+name = "no-std-net"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43794a0ace135be66a25d3ae77d41b91615fb68ae937f904090203e81f755b65"
 
 [[package]]
 name = "num-derive"

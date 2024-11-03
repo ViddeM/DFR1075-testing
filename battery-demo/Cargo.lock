@@ -39,6 +39,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "battery-demo"
+version = "0.1.0"
+dependencies = [
+ "esp-backtrace",
+ "esp-hal",
+ "esp-println",
+ "log",
+]
+
+[[package]]
 name = "bitfield"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -149,16 +159,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb6969eaabd2421f8a2775cfd2471a2b634372b4a25d41e3bd647b79912850a0"
 dependencies = [
  "litrs",
-]
-
-[[package]]
-name = "embed-thingy"
-version = "0.1.0"
-dependencies = [
- "esp-backtrace",
- "esp-hal",
- "esp-println",
- "log",
 ]
 
 [[package]]
