@@ -28,7 +28,8 @@ extern crate alloc;
 
 #[esp_hal_embassy::main]
 async fn main(_spawner: Spawner) -> ! {
-    esp_println::logger::init_logger_from_env();
+    esp_println::logger::init_logger(log::LevelFilter::Trace);
+    // esp_println::logger::init_logger_from_env();
     let peripherals = esp_hal::init({
         let mut config = esp_hal::Config::default();
         config.cpu_clock = CpuClock::max();
@@ -37,15 +38,32 @@ async fn main(_spawner: Spawner) -> ! {
 
     esp_alloc::heap_allocator!(72 * 1024);
 
+    log::info!("Let's go!");
+
     let timg0 = TimerGroup::new(peripherals.TIMG0);
 
-    let init = init(
+    log::warn!("WARN");
+    log::error!("ERROR");
+    log::debug!("DEBUG");
+    log::trace!("TRACE");
+    log::info!("INFO");
+
+    esp_println::dbg!("DEBUGGING ");
+    esp_println::println!("<--->");
+
+    let init: esp_wifi::EspWifiInitialization = init(
         EspWifiInitFor::Ble,
         timg0.timer0,
         Rng::new(peripherals.RNG),
         peripherals.RADIO_CLK,
     )
+    .map_err(|err| {
+        log::error!("Error during init, {err:?}");
+        err
+    })
     .unwrap();
+
+    log::info!("INIT COMPLETE");
 
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
     let button = Input::new(io.pins.gpio0, Pull::Down);
@@ -56,11 +74,13 @@ async fn main(_spawner: Spawner) -> ! {
 
     let mut bluetooth = peripherals.BT;
 
+    log::info!("Retrieve bluetooth peripheral");
+
     let connector = BleConnector::new(&init, &mut bluetooth);
 
     let now = || time::now().duration_since_epoch().to_millis();
     let mut ble = Ble::new(connector, now);
-    println!("Connector created");
+    log::info!("Connector created");
 
     let pin_ref = RefCell::new(button);
     let pin_ref = &pin_ref;
@@ -81,7 +101,7 @@ async fn main(_spawner: Spawner) -> ! {
             )
             .await
         );
-        println!("{:?}", ble.cmd_set_le_advertise_enable(true).await);
+        log::info!("{:?}", ble.cmd_set_le_advertise_enable(true).await);
 
         println!("started advertising");
 
