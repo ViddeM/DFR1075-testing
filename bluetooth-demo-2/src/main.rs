@@ -1,18 +1,20 @@
 #![no_std]
 #![no_main]
 
+use core::mem::MaybeUninit;
+
 use bt_hci::controller::ExternalController;
 use embassy_executor::Spawner;
 use embassy_futures::select::select3;
 use embassy_time::{Duration, Timer};
 use esp_backtrace as _;
-use esp_hal::{delay::Delay, prelude::*, rng::Rng, timer::timg::TimerGroup};
+use esp_hal::{prelude::*, rng::Rng, timer::timg::TimerGroup};
 use esp_wifi::ble::controller::asynch::BleConnector;
 use esp_wifi::EspWifiInitFor;
 use trouble_host::{
     gap::{appearance, GapConfig, PeripheralConfig},
     prelude::*,
-    AddrKind, Address, Controller, HostResources, PacketQos,
+    Address, Controller, HostResources, PacketQos,
 };
 
 /// Size of L2CAP packets (ATT MTU is this - 4)
@@ -23,8 +25,6 @@ const CONNECTIONS_MAX: usize = 1;
 
 /// Max number of L2CAP channels.
 const L2CAP_CHANNELS_MAX: usize = 2; // Signal + att
-
-const MAX_ATTRIBUTES: usize = 10;
 
 type Resources<C> = HostResources<C, CONNECTIONS_MAX, L2CAP_CHANNELS_MAX, L2CAP_MTU>;
 
@@ -162,7 +162,7 @@ async fn advertise_task<C: Controller>(
         let mut tick: u8 = 0;
         while conn.is_connected() {
             Timer::after(Duration::from_secs(2)).await;
-            tick = tick.wrappig_add(1);
+            tick = tick.wrapping_add(1);
             log::info!("[adv] notifying connection of tick {}", tick);
             let _ = server.notify(server.derp.level, &conn, &[tick]).await;
         }
