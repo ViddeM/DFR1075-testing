@@ -2,7 +2,8 @@
 runner = "espflash flash --monitor"
 
 [env]
-ESP_LOG="trace"
+ESP_WIFI_COUNTRY_CODE = "SE"
+ESP_WIFI_DUMP_PACKETS = "true"
 
 [build]
 rustflags = [

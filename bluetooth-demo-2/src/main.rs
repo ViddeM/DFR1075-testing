@@ -1,16 +1,13 @@
 #![no_std]
 #![no_main]
 
-use core::mem::MaybeUninit;
-
 use bt_hci::controller::ExternalController;
 use embassy_executor::Spawner;
 use embassy_futures::select::select3;
 use embassy_time::{Duration, Timer};
 use esp_backtrace as _;
 use esp_hal::{prelude::*, rng::Rng, timer::timg::TimerGroup};
-use esp_wifi::ble::controller::asynch::BleConnector;
-use esp_wifi::EspWifiInitFor;
+use esp_wifi::ble::controller::BleConnector;
 use trouble_host::{
     gap::{appearance, GapConfig, PeripheralConfig},
     prelude::*,
@@ -44,16 +41,18 @@ async fn main(_s: Spawner) {
     });
 
     esp_alloc::heap_allocator!(72 * 1024);
+    log::info!("Let's go!");
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
 
+    log::info!("Initializing esp_wifi");
     let init = esp_wifi::init(
-        EspWifiInitFor::Ble,
         timg0.timer0,
         Rng::new(peripherals.RNG),
         peripherals.RADIO_CLK,
     )
     .expect("BAIL (hilfe!)");
+    log::info!("...done");
 
     // TODO: Not sure why the second one tbh.
     let timg1 = TimerGroup::new(peripherals.TIMG1);
@@ -124,6 +123,14 @@ async fn gatt_task<C: Controller>(server: &MyFirstBTEServer<'_, '_, C>) {
     }
 }
 
+struct HidInformation;
+
+#[gatt_service(uuid = "1812")]
+struct Keyboard {
+    #[characteristic(uuid = "2a4a", read)]
+    hid_information: HidInformation,
+}
+
 #[gatt_service(uuid = "180f")]
 struct Derp {
     #[characteristic(uuid = "2a19", read, notify)]
@@ -145,6 +152,7 @@ async fn advertise_task<C: Controller>(
         ],
         &mut adv_data[..],
     )?;
+
     loop {
         log::info!("[adv] advertising");
         let mut advertiser = peripheral
