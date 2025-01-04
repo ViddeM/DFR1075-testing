@@ -1,5 +1,7 @@
 #![no_std]
 #![no_main]
+// required by embassy-executor nightly feature
+#![feature(impl_trait_in_assoc_type)]
 
 use bt_hci::controller::ExternalController;
 use embassy_executor::Spawner;
@@ -7,6 +9,7 @@ use embassy_futures::select::select3;
 use embassy_time::{Duration, Timer};
 use esp_backtrace as _;
 use esp_hal::{prelude::*, rng::Rng, timer::timg::TimerGroup};
+use esp_println as _;
 use esp_wifi::ble::controller::BleConnector;
 use trouble_host::{
     gap::{appearance, GapConfig, PeripheralConfig},
@@ -32,8 +35,6 @@ struct MyFirstBTEServer {
 
 #[esp_hal_embassy::main]
 async fn main(_s: Spawner) {
-    esp_println::logger::init_logger_from_env();
-
     let peripherals = esp_hal::init({
         let mut config = esp_hal::Config::default();
         config.cpu_clock = CpuClock::max(); // TODO: Maybe no max?
@@ -41,18 +42,25 @@ async fn main(_s: Spawner) {
     });
 
     esp_alloc::heap_allocator!(72 * 1024);
-    log::info!("Let's go!");
+
+    defmt::warn!("WARN");
+    defmt::error!("ERROR");
+    defmt::debug!("DEBUG");
+    defmt::trace!("TRACE");
+    defmt::info!("INFO");
+
+    defmt::info!("Let's go!");
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
 
-    log::info!("Initializing esp_wifi");
+    defmt::info!("Initializing esp_wifi");
     let init = esp_wifi::init(
         timg0.timer0,
         Rng::new(peripherals.RNG),
         peripherals.RADIO_CLK,
     )
     .expect("BAIL (hilfe!)");
-    log::info!("...done");
+    defmt::info!("...done");
 
     // TODO: Not sure why the second one tbh.
     let timg1 = TimerGroup::new(peripherals.TIMG1);
@@ -67,8 +75,8 @@ async fn main(_s: Spawner) {
     let host = trouble_host::new(controller, &mut host_resources);
 
     let address = Address::random([0x41, 0x5A, 0xE3, 0x1E, 0x83, 0xE7]);
-    log::info!(
-        "I don't know, this is some address we have... I guess: `{:02x?}`",
+    defmt::info!(
+        "I don't know, this is some address we have... I guess: `{:02x}`",
         address
     );
 
@@ -82,7 +90,7 @@ async fn main(_s: Spawner) {
         }),
     );
 
-    log::info!("Starting advertising business making people by scamming people that needs medicine! #LoveCorporateAmerica");
+    defmt::info!("Starting advertising business making people by scamming people that needs medicine! #LoveCorporateAmerica");
     let res = select3(
         runner.run(),
         gatt_task(&server),
@@ -90,9 +98,9 @@ async fn main(_s: Spawner) {
     )
     .await;
 
-    log::info!("res: {res:?}");
+    defmt::info!("res: {:?}", defmt::Debug2Format(&res));
 
-    log::warn!("No idea, tux told me to do it");
+    defmt::warn!("No idea, tux told me to do it");
 }
 
 async fn gatt_task<C: Controller>(server: &MyFirstBTEServer<'_, '_, C>) {
@@ -103,7 +111,7 @@ async fn gatt_task<C: Controller>(server: &MyFirstBTEServer<'_, '_, C>) {
                 connection: _,
             }) => {
                 let _ = server.get(handle, |value| {
-                    log::info!(
+                    defmt::info!(
                         "[gatt] Write event on {:?}. Value written: {:?}",
                         handle,
                         value
@@ -114,10 +122,10 @@ async fn gatt_task<C: Controller>(server: &MyFirstBTEServer<'_, '_, C>) {
                 handle,
                 connection: _,
             }) => {
-                log::info!("[gatt] Read event on {:?}", handle);
+                defmt::info!("[gatt] Read event on {:?}", handle);
             }
             Err(e) => {
-                log::error!("[gatt] Error processing GATT events: {:?}", e);
+                defmt::error!("[gatt] Error processing GATT events: {:?}", e);
             }
         }
     }
@@ -154,7 +162,7 @@ async fn advertise_task<C: Controller>(
     )?;
 
     loop {
-        log::info!("[adv] advertising");
+        defmt::info!("[adv] advertising");
         let mut advertiser = peripheral
             .advertise(
                 &Default::default(),
@@ -165,13 +173,13 @@ async fn advertise_task<C: Controller>(
             )
             .await?;
         let conn = advertiser.accept().await?;
-        log::info!("[adv] connection established");
+        defmt::info!("[adv] connection established");
         // Keep connection alive
         let mut tick: u8 = 0;
         while conn.is_connected() {
             Timer::after(Duration::from_secs(2)).await;
             tick = tick.wrapping_add(1);
-            log::info!("[adv] notifying connection of tick {}", tick);
+            defmt::info!("[adv] notifying connection of tick {}", tick);
             let _ = server.notify(server.derp.level, &conn, &[tick]).await;
         }
     }
