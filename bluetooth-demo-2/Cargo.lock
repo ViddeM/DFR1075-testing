@@ -83,6 +83,7 @@ dependencies = [
  "esp-hal-embassy",
  "esp-println",
  "esp-wifi",
+ "futures",
  "heapless",
  "rand_core",
  "static_cell",
@@ -102,6 +103,7 @@ dependencies = [
  "embedded-io-async",
  "futures-intrusive",
  "heapless",
+ "uuid",
 ]
 
 [[package]]
@@ -790,6 +792,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e5c1b78ca4aae1ac06c48a526a655760685149f0d465d21f37abfe57ce075c6"
 
 [[package]]
+name = "futures-macro"
+version = "0.3.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "162ee34ebcb7c64a8abebc059ce0fee27c2262618d7b60ed8faf72fef13c3650"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "futures-sink"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -808,6 +821,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9fa08315bb612088cc391249efdc3bc77536f16c91f6cf495e6fbe85b20a4a81"
 dependencies = [
  "futures-core",
+ "futures-macro",
  "futures-sink",
  "futures-task",
  "pin-project-lite",
@@ -972,6 +986,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "num_enum"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e613fc340b2220f734a8595782c551f1250e969d87d3be1ae0579e8d4065179"
+dependencies = [
+ "num_enum_derive",
+]
+
+[[package]]
+name = "num_enum_derive"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af1844ef2428cc3e1cb900be36181049ef3d3193c63e43026cfe202983b27a56"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -1334,7 +1368,7 @@ dependencies = [
 [[package]]
 name = "trouble-host"
 version = "0.1.0"
-source = "git+https://github.com/embassy-rs/trouble?rev=9840438d75f0bfcc0cf950f5d1b267e86736b7b3#9840438d75f0bfcc0cf950f5d1b267e86736b7b3"
+source = "git+https://github.com/embassy-rs/trouble?rev=07fa452e836f07a302596edb6a61e060d242e4ea#07fa452e836f07a302596edb6a61e060d242e4ea"
 dependencies = [
  "bt-hci",
  "defmt",
@@ -1345,13 +1379,16 @@ dependencies = [
  "embedded-io-async",
  "futures",
  "heapless",
+ "num_enum",
+ "static_cell",
+ "thiserror",
  "trouble-host-macros",
 ]
 
 [[package]]
 name = "trouble-host-macros"
 version = "0.1.0"
-source = "git+https://github.com/embassy-rs/trouble?rev=9840438d75f0bfcc0cf950f5d1b267e86736b7b3#9840438d75f0bfcc0cf950f5d1b267e86736b7b3"
+source = "git+https://github.com/embassy-rs/trouble?rev=07fa452e836f07a302596edb6a61e060d242e4ea#07fa452e836f07a302596edb6a61e060d242e4ea"
 dependencies = [
  "Inflector",
  "darling",

@@ -29,8 +29,7 @@ esp-wifi = { version = "0.11.0", features = [
     "defmt",
 ] }
 heapless = { version = "0.8.0", default-features = false }
-trouble-host = { git = "https://github.com/embassy-rs/trouble", package = "trouble-host", rev = "9840438d75f0bfcc0cf950f5d1b267e86736b7b3", features = [ "defmt", "gatt" ] }
-# TODO: use nightly static arena
+trouble-host = { git = "https://github.com/embassy-rs/trouble", package = "trouble-host", rev = "07fa452e836f07a302596edb6a61e060d242e4ea", features = [ "defmt", "gatt" ] }
 embassy-executor = { version = "0.6.3", features = ["nightly"] }
 esp-hal-embassy = { version = "0.5.0", features = ["esp32c6"] }
 static_cell = "2.1.0"
@@ -41,6 +40,7 @@ embassy-time = { version = "0.3.2", features = ["generic-queue"] }
 esp-alloc = "0.5.0"
 rand_core = "0.6.4"
 defmt = "0.3.10"
+futures = { version = "0.3.31", default-features = false, features = ["async-await"] }
 
 [profile.dev]
 # Rust debug is too slow.
