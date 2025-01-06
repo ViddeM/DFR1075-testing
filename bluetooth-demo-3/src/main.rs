@@ -12,7 +12,7 @@ use bleps::{
     async_attribute_server::AttributeServer,
     asynch::Ble,
     attribute_server::NotificationData,
-    gatt,
+    gatt, Addr,
 };
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
@@ -146,11 +146,13 @@ async fn main(spawner: Spawner) -> ! {
         config
     });
 
+    use esp_hal::timer::systimer::{SystemTimer, Target};
+    let systimer = SystemTimer::new(peripherals.SYSTIMER).split::<Target>();
+    esp_hal_embassy::init(systimer.alarm0);
+
     esp_alloc::heap_allocator!(72 * 1024);
 
-    log::info!("Let's go!");
-
-    spawner.must_spawn(ticktock());
+    //spawner.must_spawn(ticktock());
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
 
@@ -160,29 +162,17 @@ async fn main(spawner: Spawner) -> ! {
     log::trace!("TRACE");
     log::info!("INFO");
 
-    esp_println::dbg!("DEBUGGING ");
-    esp_println::println!("<--->");
+    log::info!("Press button to continue");
+    let mut button = Input::new(peripherals.GPIO9, Pull::Up);
+    button.wait_for_low().await;
+    log::info!("Let's go!");
 
     let rng = Rng::new(peripherals.RNG);
-    let init = esp_wifi::init(
-        //EspWifiInitFor::Ble,
-        timg0.timer0,
-        rng.clone(),
-        peripherals.RADIO_CLK,
-    )
-    .map_err(|err| {
-        log::error!("Error during init, {err:?}");
-        err
-    })
-    .unwrap();
+    let init = esp_wifi::init(timg0.timer0, rng.clone(), peripherals.RADIO_CLK)
+        .inspect_err(|err| log::error!("Error during init, {err:?}"))
+        .unwrap();
 
     log::info!("INIT COMPLETE");
-
-    let button = Input::new(peripherals.GPIO9, Pull::Down);
-
-    use esp_hal::timer::systimer::{SystemTimer, Target};
-    let systimer = SystemTimer::new(peripherals.SYSTIMER).split::<Target>();
-    esp_hal_embassy::init(systimer.alarm0);
 
     let mut bluetooth = peripherals.BT;
 
@@ -193,6 +183,13 @@ async fn main(spawner: Spawner) -> ! {
     let now = || time::now().duration_since_epoch().to_millis();
     let mut ble = Ble::new(connector, now);
     log::info!("Connector created");
+
+    let local_ble_address = ble
+        .cmd_read_br_addr()
+        .await
+        .expect("Failed to read local BLE address");
+
+    log::info!("BLE address: {:02x?}", local_ble_address);
 
     let pin_ref = RefCell::new(button);
     let pin_ref = &pin_ref;
@@ -348,7 +345,14 @@ async fn main(spawner: Spawner) -> ! {
         ]);
 
         let mut rng = RngWrapper::from(rng);
-        let mut srv = AttributeServer::new(&mut ble, &mut gatt_attributes, &mut rng);
+        let ltk: Option<u128> = None; // TODO: i think we need this for persistent pairing?
+        let mut srv = AttributeServer::new_with_ltk(
+            &mut ble,
+            &mut gatt_attributes,
+            Addr::from_le_bytes(false, local_ble_address),
+            ltk,
+            &mut rng,
+        );
 
         let mut notifier = || {
             async {
