@@ -5,40 +5,21 @@
 mod nice_view;
 mod rng;
 
-use core::cell::RefCell;
-
-use bleps::{
-    ad_structure::{
-        create_advertising_data, AdStructure, BR_EDR_NOT_SUPPORTED, LE_GENERAL_DISCOVERABLE,
-    },
-    async_attribute_server::AttributeServer,
-    asynch::Ble,
-    attribute_server::NotificationData,
-    gatt, Addr,
-};
 use embassy_executor::Spawner;
-use embassy_time::{Duration, Timer};
-use embedded_io::Write;
 use esp_backtrace as _;
 use esp_hal::{
-    dma::{Dma, DmaTxBuf},
+    dma::Dma,
     gpio::{Input, Level, Output, Pull},
     prelude::*,
-    rng::Rng,
-    spi::{self, master::Spi, SpiMode},
-    time,
-    timer::timg::TimerGroup,
+    spi::{self, master::Spi, SpiBitOrder, SpiMode},
 };
-use esp_println::println;
-use esp_wifi::ble::controller::BleConnector;
 use fugit::HertzU32;
-use nice_view::NiceView;
-use rng::RngWrapper;
+use nice_view::{Color, NiceView};
 
 extern crate alloc;
 
 #[esp_hal_embassy::main]
-async fn main(spawner: Spawner) -> ! {
+async fn main(_spawner: Spawner) -> ! {
     esp_println::logger::init_logger(log::LevelFilter::Debug);
     // esp_println::logger::init_logger_from_env();
 
@@ -51,8 +32,6 @@ async fn main(spawner: Spawner) -> ! {
     use esp_hal::timer::systimer::{SystemTimer, Target};
     let systimer = SystemTimer::new(peripherals.SYSTIMER).split::<Target>();
     esp_hal_embassy::init(systimer.alarm0);
-
-    let timg0 = TimerGroup::new(peripherals.TIMG0);
 
     let dma = Dma::new(peripherals.DMA);
 
@@ -72,8 +51,12 @@ async fn main(spawner: Spawner) -> ! {
     // 22, 21,  20
     // CS, SCK, MOSI
     let mut spi_config = spi::master::Config::default();
+
+    // Required SPI config for the NiceView
     spi_config.frequency = HertzU32::MHz(1);
     spi_config.mode = SpiMode::Mode0;
+    spi_config.write_bit_order = SpiBitOrder::LSBFirst;
+    spi_config.read_bit_order = SpiBitOrder::LSBFirst; // probably useless
 
     // NiceView cs is active high. I think...
     let cs = Output::new(peripherals.GPIO22, Level::Low);
@@ -89,12 +72,44 @@ async fn main(spawner: Spawner) -> ! {
 
     let mut nice_view = NiceView::new(spi, cs);
 
-    log::info!("wait...");
-    Timer::after(Duration::from_secs(2)).await;
-
-    log::info!("drawing...");
+    log::info!("BOUNCE DA BALL");
     nice_view.clear_display().await;
-    nice_view.testy().await;
+
+    let mut x: f32 = 0.0;
+    let mut y: f32 = 0.0;
+    let mut dx: f32 = 0.6;
+    let mut dy: f32 = 0.0;
+    let gravity = 0.01;
+
+    let r = 8;
+    nice_view.fill_white();
+    loop {
+        nice_view.draw_circle(x as usize, y as usize, Color::White, r);
+
+        dy += gravity;
+
+        x += dx;
+        y += dy;
+
+        if x >= 160.0 && dx > 0.0 {
+            dx = -dx;
+        }
+        if x < 0.0 && dx < 0.0 {
+            dx = -dx;
+        }
+
+        if y >= 68.0 && dy > 0.0 {
+            dy = -dy;
+        }
+        if y < 0.0 && dy < 0.0 {
+            dy = -dy;
+        }
+
+        nice_view.draw_circle(x as usize, y as usize, Color::Black, r);
+        nice_view.flush().await;
+
+        //Timer::after(Duration::from_millis(10)).await;
+    }
 
     log::info!("exit");
 

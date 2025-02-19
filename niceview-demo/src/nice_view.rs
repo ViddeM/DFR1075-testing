@@ -1,4 +1,5 @@
-use embassy_time::Duration;
+use core::mem::{self, transmute};
+
 use esp_hal::{
     dma::{DmaRxBuf, DmaTxBuf},
     gpio::Output,
@@ -6,26 +7,54 @@ use esp_hal::{
     Async,
 };
 
-// TODO: might not need these
-const BLACK: u8 = 0;
-const WHITE: u8 = 1;
+/// Monochrome color.
+#[repr(u8)]
+#[derive(Clone, Copy)]
+pub enum Color {
+    Black = 0,
+    White = 0xff,
+}
 
+/// Display width in pixels.
 const WIDTH: usize = 160;
+/// Display height in pixels.
 const HEIGHT: usize = 68;
 
-// const SHARPMEM_BIT_WRITECMD: u8 = 0x01; // 0x80 in LSB format
-// const SHARPMEM_BIT_VCOM: u8 = 0x02; // 0x40 in LSB format
-// const SHARPMEM_BIT_CLEAR: u8 = 0x04; // 0x20 in LSB format
+// NiceView SPI command.
+#[derive(Clone, Copy)]
+#[repr(transparent)]
+struct DisplayCommand(pub u8);
+impl DisplayCommand {
+    pub const WRITE: Self = DisplayCommand(0x01); // 0x80 in LSB format
+    #[allow(dead_code)]
+    // TODO: what is this?
+    pub const VCOM: Self = DisplayCommand(0x02); // 0x40 in LSB format
+    pub const CLEAR: Self = DisplayCommand(0x04); // 0x20 in LSB format
+}
 
-// NOTE: flip these around if running in LSB mode
-const SHARPMEM_BIT_WRITECMD: u8 = 0x80;
-const SHARPMEM_BIT_VCOM: u8 = 0x40;
-const SHARPMEM_BIT_CLEAR: u8 = 0x20;
+/// Number of octet lines in the display.
+const LINE_LEN: usize = WIDTH / 8;
+
+#[repr(C, packed)]
+struct DrawCmd {
+    pub command: DisplayCommand,
+    pub lines: [DrawCmdLine; HEIGHT],
+    pub _trailing_zero: u8,
+}
+
+#[repr(C, packed)]
+struct DrawCmdLine {
+    pub line_number: u8,
+    pub pixel_octets: [u8; LINE_LEN],
+    pub _trailing_zero: u8,
+}
 
 pub struct NiceView {
     spi: SpiDmaBus<'static, Async>,
     cs: Output<'static>,
-    vcom: u8,
+
+    /// Buffer holding the draw command, including pixel data.
+    draw_command: DrawCmd,
 }
 
 impl NiceView {
@@ -39,91 +68,74 @@ impl NiceView {
         NiceView {
             spi,
             cs,
-            vcom: SHARPMEM_BIT_VCOM,
+            draw_command: DrawCmd::new(),
         }
     }
 
     pub async fn clear_display(&mut self) {
         // TODO: what does the VCOM bit do??
-        self.write(&[self.vcom | SHARPMEM_BIT_CLEAR, 0x00]).await;
+        //self.write(&[self.vcom | DisplayCommand::CLEAR, 0x00]).await;
+        self.write(&[DisplayCommand::CLEAR.0, 0x00]).await;
         self.toggle_vcom();
     }
 
-    pub async fn testy(&mut self) {
-        const PIXELS: usize = WIDTH * HEIGHT;
-        const BYTES: usize = PIXELS / 8;
+    pub async fn flush(&mut self) {
+        self.draw_command.command = DisplayCommand::WRITE;
 
-        let mut buf = [0u8; BYTES + 2];
-
-        buf[0] = SHARPMEM_BIT_WRITECMD;
-        for n in 1..=BYTES {
-            buf[n] = 0xff;
-            buf[n + 1] = 0;
-
-            let cmd = &buf[..=n + 1];
-
-            self.cs.set_high();
-            self.spi.write_async(cmd).await.unwrap();
-            self.cs.set_low();
-
-            embassy_time::Timer::after(Duration::from_millis(500)).await;
-        }
+        let cmd: &[u8; size_of::<DrawCmd>()] = unsafe { transmute(&self.draw_command) };
+        self.write(cmd).await;
     }
 
-    pub async fn draw_test(&mut self, asdf: bool) {
-        self.cs.set_high();
-
-        // TODO: what does the VCOM bit do??
-        self.spi
-            .write_async(&[self.vcom | SHARPMEM_BIT_WRITECMD])
-            .await
-            .unwrap();
-        self.toggle_vcom();
-
-        //  uint8_t bytes_per_line = WIDTH / 8;
-        //  uint16_t totalbytes = (WIDTH * HEIGHT) / 8;
-        const BYTES_PER_LINE: usize = WIDTH / 8;
-        let total_bytes = (WIDTH * HEIGHT) / 8;
-
-        //  for (i = 0; i < totalbytes; i += bytes_per_line) {
-        //    uint8_t line[bytes_per_line + 2];
-        let all_black = 0x00;
-        let all_white = 0xff;
-
-        let (a, b) = if asdf {
-            (all_black, all_white)
-        } else {
-            (all_white, all_black)
-        };
-
-        for i in (0..total_bytes).step_by(BYTES_PER_LINE) {
-            const LEN: usize = BYTES_PER_LINE + 2;
-            let mut line = [b; LEN];
-            //let mut line = [0u8; { BYTES_PER_LINE + 2}];
-
-            for b in &mut line[(LEN / 2)..] {
-                *b = a;
+    pub fn fill_white(&mut self) {
+        for line in &mut self.draw_command.lines {
+            for octet in &mut line.pixel_octets {
+                *octet = 0xff;
             }
+        }
+    }
 
-            // Send address byte
-            let current_line = ((i + 1) / (WIDTH / 8)) as u8 + 1;
-            line[0] = current_line;
+    pub fn draw_pixel(&mut self, x: usize, y: usize, color: Color) {
+        let line_octet = x >> 3;
 
-            // TODO: actually send image data
-
-            // End of line
-            line[BYTES_PER_LINE + 1] = 0;
-
-            self.spi.write_async(&line).await.unwrap();
+        if line_octet >= LINE_LEN || y >= HEIGHT {
+            return;
         }
 
-        // Send another trailing 8 bits for the last line
-        self.spi.write_async(&[0x00]).await.unwrap();
+        let octet_bit = x & 0b000_0111;
+        let octet_mask = 1 << octet_bit;
 
-        self.cs.set_low();
+        let line = &mut self.draw_command.lines[y];
+        let octet = &mut line.pixel_octets[line_octet];
+
+        match color {
+            // Set the bit to 0 (black)
+            Color::Black => *octet &= !octet_mask,
+
+            // Set the bit to 1 (white)
+            Color::White => *octet |= octet_mask,
+        }
+    }
+
+    pub fn draw_circle(&mut self, center_x: usize, center_y: usize, color: Color, radius: usize) {
+        let center_x = center_x as isize;
+        let center_y = center_y as isize;
+
+        for x in 0..WIDTH {
+            for y in 0..HEIGHT {
+                let distance = {
+                    let (x, y) = (x as isize, y as isize);
+                    (center_x - x).abs() + (center_y - y).abs()
+                };
+
+                if distance <= radius as isize {
+                    self.draw_pixel(x, y, color);
+                }
+            }
+        }
     }
 
     fn toggle_vcom(&mut self) {
+        /*
         // ported directly adafruit driver
         // TODO: wtf is this shit?
         if self.vcom == 0 {
@@ -131,11 +143,25 @@ impl NiceView {
         } else {
             self.vcom = 0;
         }
+        */
     }
 
     pub async fn write(&mut self, data: &[u8]) {
         self.cs.set_high();
         self.spi.write_async(data).await.unwrap();
         self.cs.set_low();
+    }
+}
+
+impl DrawCmd {
+    pub fn new() -> Self {
+        // SAFETY: DrawCmd is repr(C, packed), and only contains types with valid zero-bitpatterns.
+        let mut this: Self = unsafe { mem::zeroed() };
+
+        for (n, line) in this.lines.iter_mut().enumerate() {
+            line.line_number = n as u8;
+        }
+
+        this
     }
 }
