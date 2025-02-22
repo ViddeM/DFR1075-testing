@@ -14,7 +14,7 @@ use esp_hal::{
     spi::{self, master::Spi, SpiBitOrder, SpiMode},
 };
 use fugit::HertzU32;
-use nice_view::{Color, NiceView};
+use screen::{color::Color, nice_view::NiceView};
 
 extern crate alloc;
 
@@ -72,6 +72,24 @@ async fn main(_spawner: Spawner) -> ! {
 
     let mut nice_view = NiceView::new(spi, cs);
 
+    nice_view.clear_display().await;
+    nice_view.fill_white();
+
+    nice_view.draw_pixel(20, 20, Color::Black);
+    nice_view.draw_pixel(20, 21, Color::Black);
+    nice_view.draw_pixel(20, 22, Color::Black);
+    nice_view.draw_pixel(20, 23, Color::Black);
+    nice_view.draw_pixel(20, 24, Color::Black);
+
+    nice_view.draw_pixel(21, 24, Color::Black);
+    nice_view.draw_pixel(22, 24, Color::Black);
+    nice_view.draw_pixel(23, 23, Color::Black);
+    nice_view.draw_pixel(22, 22, Color::Black);
+    nice_view.draw_pixel(21, 22, Color::Black);
+
+    nice_view.flush().await;
+
+    /*
     log::info!("BOUNCE DA BALL");
     nice_view.clear_display().await;
 
@@ -110,6 +128,7 @@ async fn main(_spawner: Spawner) -> ! {
 
         //Timer::after(Duration::from_millis(10)).await;
     }
+    */
 
     log::info!("exit");
 

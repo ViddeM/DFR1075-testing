@@ -7,13 +7,7 @@ use esp_hal::{
     Async,
 };
 
-/// Monochrome color.
-#[repr(u8)]
-#[derive(Clone, Copy)]
-pub enum Color {
-    Black = 0,
-    White = 0xff,
-}
+use super::color::Color;
 
 /// Display width in pixels.
 const WIDTH: usize = 160;
