@@ -6,8 +6,7 @@ use esp_hal::{
     spi::master::{SpiDma, SpiDmaBus},
     Async,
 };
-
-use super::color::Color;
+use niceview_lib::{color::Color, KeyboardDisplay};
 
 /// Display width in pixels.
 const WIDTH: usize = 160;
@@ -51,36 +50,22 @@ pub struct NiceView {
     draw_command: DrawCmd,
 }
 
-impl NiceView {
-    pub fn new(spi: SpiDma<'static, Async>, cs: Output<'static>) -> Self {
-        let (rx_buf, rx_descriptors, tx_buf, tx_descriptors) = esp_hal::dma_buffers!(256, 256);
-
-        let tx_buf = DmaTxBuf::new(tx_descriptors, tx_buf).unwrap();
-        let rx_buf = DmaRxBuf::new(rx_descriptors, rx_buf).unwrap();
-        let spi = spi.with_buffers(rx_buf, tx_buf);
-
-        NiceView {
-            spi,
-            cs,
-            draw_command: DrawCmd::new(),
-        }
-    }
-
-    pub async fn clear_display(&mut self) {
+impl KeyboardDisplay for NiceView {
+    async fn clear_display(&mut self) {
         // TODO: what does the VCOM bit do??
         //self.write(&[self.vcom | DisplayCommand::CLEAR, 0x00]).await;
         self.write(&[DisplayCommand::CLEAR.0, 0x00]).await;
         self.toggle_vcom();
     }
 
-    pub async fn flush(&mut self) {
+    async fn flush(&mut self) {
         self.draw_command.command = DisplayCommand::WRITE;
 
         let cmd: &[u8; size_of::<DrawCmd>()] = unsafe { transmute(&self.draw_command) };
         self.write(cmd).await;
     }
 
-    pub fn fill_white(&mut self) {
+    fn fill_white(&mut self) {
         for line in &mut self.draw_command.lines {
             for octet in &mut line.pixel_octets {
                 *octet = 0xff;
@@ -88,7 +73,7 @@ impl NiceView {
         }
     }
 
-    pub fn draw_pixel(&mut self, x: usize, y: usize, color: Color) {
+    fn draw_pixel(&mut self, x: usize, y: usize, color: Color) {
         let line_octet = x >> 3;
 
         if line_octet >= LINE_LEN || y >= HEIGHT {
@@ -110,21 +95,25 @@ impl NiceView {
         }
     }
 
-    pub fn draw_circle(&mut self, center_x: usize, center_y: usize, color: Color, radius: usize) {
-        let center_x = center_x as isize;
-        let center_y = center_y as isize;
+    async fn write(&mut self, data: &[u8]) {
+        self.cs.set_high();
+        self.spi.write_async(data).await.unwrap();
+        self.cs.set_low();
+    }
+}
 
-        for x in 0..WIDTH {
-            for y in 0..HEIGHT {
-                let distance = {
-                    let (x, y) = (x as isize, y as isize);
-                    (center_x - x).abs() + (center_y - y).abs()
-                };
+impl NiceView {
+    pub fn new(spi: SpiDma<'static, Async>, cs: Output<'static>) -> Self {
+        let (rx_buf, rx_descriptors, tx_buf, tx_descriptors) = esp_hal::dma_buffers!(256, 256);
 
-                if distance <= radius as isize {
-                    self.draw_pixel(x, y, color);
-                }
-            }
+        let tx_buf = DmaTxBuf::new(tx_descriptors, tx_buf).unwrap();
+        let rx_buf = DmaRxBuf::new(rx_descriptors, rx_buf).unwrap();
+        let spi = spi.with_buffers(rx_buf, tx_buf);
+
+        NiceView {
+            spi,
+            cs,
+            draw_command: DrawCmd::new(),
         }
     }
 
@@ -138,12 +127,6 @@ impl NiceView {
             self.vcom = 0;
         }
         */
-    }
-
-    pub async fn write(&mut self, data: &[u8]) {
-        self.cs.set_high();
-        self.spi.write_async(data).await.unwrap();
-        self.cs.set_low();
     }
 }
 

@@ -1,0 +1,8 @@
+[package]
+name = "niceview-testing"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+eframe = "0.31.0"
+niceview-lib = { workspace = true }

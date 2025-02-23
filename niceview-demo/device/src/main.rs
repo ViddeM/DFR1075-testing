@@ -14,7 +14,8 @@ use esp_hal::{
     spi::{self, master::Spi, SpiBitOrder, SpiMode},
 };
 use fugit::HertzU32;
-use screen::{color::Color, nice_view::NiceView};
+use nice_view::NiceView;
+use niceview_lib::{color::Color, KeyboardDisplay};
 
 extern crate alloc;
 
