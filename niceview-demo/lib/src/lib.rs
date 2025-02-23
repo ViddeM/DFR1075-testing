@@ -5,9 +5,13 @@
 //! Lib for display.
 
 use color::Color;
+use typography::text_db::{CHAR_HEIGHT, CHAR_WIDTH, is_pixel_for_char};
 
 /// Colors.
 pub mod color;
+
+/// Text rendering.
+pub mod typography;
 
 /// A display used on the keyboard.
 #[allow(async_fn_in_trait)]
@@ -49,6 +53,24 @@ pub trait KeyboardDisplay {
                 if distance <= radius as isize {
                     self.draw_pixel(x, y, color);
                 }
+            }
+        }
+    }
+
+    /// Draw a character starting at the specified coordinates (from top-left of screen).
+    fn draw_char_at(&mut self, char: char, x: usize, y: usize) {
+        for off_y in 0..CHAR_HEIGHT {
+            for off_x in 0..CHAR_WIDTH {
+                let color = if is_pixel_for_char(char, off_x, off_y) {
+                    log::info!("{off_x}x{off_y} is black!");
+                    Color::Black
+                } else {
+                    log::info!("is white");
+                    Color::White
+                };
+                let y = y + off_y;
+                let x = x + off_x;
+                self.draw_pixel(x, y, color);
             }
         }
     }
