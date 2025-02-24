@@ -27,9 +27,10 @@ impl DisplayApp {
         let mut display = VirtualDisplay::new();
 
         let text = "HELLO WORLD!";
-        for (i, c) in text.chars().enumerate() {
-            display.draw_char_at(c, 10 + i * 6, 10);
-        }
+        display.draw_text(text, 10, 10);
+        // for (i, c) in text.chars().enumerate() {
+        // display.draw_char_at(c, 10 + i * 6, 10);
+        // }
 
         Self { display }
     }
