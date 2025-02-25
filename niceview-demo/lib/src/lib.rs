@@ -2,16 +2,17 @@
 #![no_main]
 #![deny(missing_docs)]
 
-//! Lib for display.
+//! Lib for generic display handling.
 
 use color::Color;
-use typography::text_db::{CHAR_HEIGHT, CHAR_WIDTH, is_pixel_for_char};
 
 /// Colors.
 pub mod color;
 
 /// Text rendering.
 mod typography;
+pub use typography::TextVariant;
+use typography::font_for_variant;
 
 /// A display used on the keyboard.
 #[allow(async_fn_in_trait)]
@@ -57,33 +58,19 @@ pub trait KeyboardDisplay {
         }
     }
 
-    /// TODO:
-    fn draw_text(&mut self, text: &str, start_x: usize, start_y: usize) {
+    /// Draw some text starting at the provided x and y positions.
+    fn draw_text(&mut self, text: &str, start_x: usize, start_y: usize, text_variant: TextVariant) {
         use eg_bdf::BdfTextStyle;
         use embedded_graphics::{pixelcolor::BinaryColor, prelude::*, text::Text};
-        use typography::{Wrapper, generated::tamzen_10x20r::tamzen_10x20r};
+        use typography::TextDisplayer;
 
-        let text_style = BdfTextStyle::new(&tamzen_10x20r, BinaryColor::On);
-        let mut drawable_display = Wrapper::new(self);
+        // TODO: Look into if we can support alignment and/or baseline.
+        let font = font_for_variant(text_variant);
+        let text_style = BdfTextStyle::new(&font, BinaryColor::On);
+        let mut drawable_display = TextDisplayer::new(self);
 
-        let t = Text::new("some text", Point::new(20, 40), text_style).draw(&mut drawable_display);
+        // TODO: Handle error.
+        let _ = Text::new(text, Point::new(start_x as i32, start_y as i32), text_style)
+            .draw(&mut drawable_display);
     }
-
-    // /// Draw a character starting at the specified coordinates (from top-left of screen).
-    // fn draw_char_at(&mut self, char: char, x: usize, y: usize) {
-    //     for off_y in 0..CHAR_HEIGHT {
-    //         for off_x in 0..CHAR_WIDTH {
-    //             let color = if is_pixel_for_char(char, off_x, off_y) {
-    //                 log::info!("{off_x}x{off_y} is black!");
-    //                 Color::Black
-    //             } else {
-    //                 log::info!("is white");
-    //                 Color::White
-    //             };
-    //             let y = y + off_y;
-    //             let x = x + off_x;
-    //             self.draw_pixel(x, y, color);
-    //         }
-    //     }
-    // }
 }

@@ -23,21 +23,26 @@ struct DisplayApp {
 }
 
 impl DisplayApp {
-    fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         let mut display = VirtualDisplay::new();
 
-        let text = "HELLO WORLD!";
-        display.draw_text(text, 10, 10);
-        // for (i, c) in text.chars().enumerate() {
-        // display.draw_char_at(c, 10 + i * 6, 10);
-        // }
+        display.draw_text("TK-Pie", 2, 20, niceview_lib::TextVariant::LargeBold);
+
+        display.draw_text(
+            "Current layout: Layer 1x2",
+            4,
+            28,
+            niceview_lib::TextVariant::Regular,
+        );
+
+        display.draw_text("55%", 138, 14, niceview_lib::TextVariant::Regular);
 
         Self { display }
     }
 }
 
 impl eframe::App for DisplayApp {
-    fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading(format!(
                 "Display (size: {}x{})",

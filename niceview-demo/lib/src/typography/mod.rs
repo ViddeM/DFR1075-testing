@@ -1,3 +1,4 @@
+use eg_bdf::BdfFont;
 use embedded_graphics::{
     pixelcolor::BinaryColor,
     prelude::{Dimensions, DrawTarget, Point, Size},
@@ -5,16 +6,29 @@ use embedded_graphics::{
 
 use crate::KeyboardDisplay;
 
-/// Simple hacky font.
-pub mod text_db;
-
 /// Generated files.
 #[doc(hidden)]
 pub mod generated;
 
-pub struct Wrapper<'a, T: ?Sized>(&'a mut T);
+/// A variation of text style.
+#[allow(missing_docs)]
+pub enum TextVariant {
+    Regular,
+    Large,
+    LargeBold,
+}
 
-impl<'a, T> Wrapper<'a, T>
+pub fn font_for_variant<'a>(variant: TextVariant) -> BdfFont<'a> {
+    match variant {
+        TextVariant::Regular => generated::small_5x7::small_5x7,
+        TextVariant::Large => generated::tamzen_10x20r::tamzen_10x20r,
+        TextVariant::LargeBold => generated::tamzen_10x20b::tamzen_10x20b,
+    }
+}
+
+pub struct TextDisplayer<'a, T: ?Sized>(&'a mut T);
+
+impl<'a, T> TextDisplayer<'a, T>
 where
     T: KeyboardDisplay + ?Sized,
 {
@@ -23,8 +37,8 @@ where
     }
 }
 
-// TODO: Integer castings!
-impl<'a, T: KeyboardDisplay + ?Sized> Dimensions for Wrapper<'a, T> {
+// TODO: Integer castings?
+impl<'a, T: KeyboardDisplay + ?Sized> Dimensions for TextDisplayer<'a, T> {
     fn bounding_box(&self) -> embedded_graphics::primitives::Rectangle {
         embedded_graphics::primitives::Rectangle::new(
             Point::zero(),
@@ -33,7 +47,7 @@ impl<'a, T: KeyboardDisplay + ?Sized> Dimensions for Wrapper<'a, T> {
     }
 }
 
-impl<'a, T: KeyboardDisplay + ?Sized> DrawTarget for Wrapper<'a, T> {
+impl<'a, T: KeyboardDisplay + ?Sized> DrawTarget for TextDisplayer<'a, T> {
     type Color = BinaryColor;
 
     type Error = ();
