@@ -11,7 +11,8 @@ pub mod color;
 
 /// Text rendering.
 mod typography;
-pub use typography::TextVariant;
+pub use typography::{TextVariant, icons::Icon};
+
 use typography::font_for_variant;
 
 /// A display used on the keyboard.
@@ -72,5 +73,15 @@ pub trait KeyboardDisplay {
         // TODO: Handle error.
         let _ = Text::new(text, Point::new(start_x as i32, start_y as i32), text_style)
             .draw(&mut drawable_display);
+    }
+
+    /// Draw an icon starting at the provided x and y positions.
+    fn draw_icon(&mut self, icon: Icon, start_x: usize, start_y: usize) {
+        use typography::icons::get_pixels_for_icon;
+
+        let pixels = get_pixels_for_icon(&icon);
+        for (ix, iy) in pixels {
+            self.draw_pixel(start_x + ix, start_y + iy, Color::Black);
+        }
     }
 }

@@ -10,6 +10,9 @@ use crate::KeyboardDisplay;
 #[doc(hidden)]
 pub mod generated;
 
+/// Icons.
+pub mod icons;
+
 /// A variation of text style.
 #[allow(missing_docs)]
 pub enum TextVariant {

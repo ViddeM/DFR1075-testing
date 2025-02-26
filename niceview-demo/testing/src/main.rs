@@ -1,5 +1,5 @@
 use eframe::egui;
-use niceview_lib::KeyboardDisplay;
+use niceview_lib::{Icon, KeyboardDisplay};
 use virtual_display::VirtualDisplay;
 
 pub mod virtual_display;
@@ -35,7 +35,16 @@ impl DisplayApp {
             niceview_lib::TextVariant::Regular,
         );
 
-        display.draw_text("55%", 138, 14, niceview_lib::TextVariant::Regular);
+        display.draw_text("5%", 132, 15, niceview_lib::TextVariant::Regular);
+        display.draw_icon(Icon::BatteryCritical, 143, 9);
+
+        display.draw_icon(Icon::BluetoothConnected, 136, 24);
+        display.draw_icon(Icon::BluetoothDisconnected, 146, 24);
+
+        display.draw_icon(Icon::BatteryQuarter, 10, 50);
+        display.draw_icon(Icon::BatteryHalf, 30, 50);
+        display.draw_icon(Icon::BatteryThreeQuarters, 50, 50);
+        display.draw_icon(Icon::BatteryFull, 70, 50);
 
         Self { display }
     }
