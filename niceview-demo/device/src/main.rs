@@ -76,17 +76,10 @@ async fn main(_spawner: Spawner) -> ! {
     nice_view.clear_display().await;
     nice_view.fill_white();
 
-    nice_view.draw_pixel(20, 20, Color::Black);
-    nice_view.draw_pixel(20, 21, Color::Black);
-    nice_view.draw_pixel(20, 22, Color::Black);
-    nice_view.draw_pixel(20, 23, Color::Black);
-    nice_view.draw_pixel(20, 24, Color::Black);
-
-    nice_view.draw_pixel(21, 24, Color::Black);
-    nice_view.draw_pixel(22, 24, Color::Black);
-    nice_view.draw_pixel(23, 23, Color::Black);
-    nice_view.draw_pixel(22, 22, Color::Black);
-    nice_view.draw_pixel(21, 22, Color::Black);
+    let text = "HELLO WORLD!";
+    for (i, c) in text.chars().enumerate() {
+        nice_view.draw_char_at(c, 10 + i * 6, 10);
+    }
 
     nice_view.flush().await;
 
