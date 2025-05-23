@@ -9,6 +9,9 @@ use color::Color;
 /// Colors.
 pub mod color;
 
+/// Image handling.
+mod image;
+mod images;
 /// Text rendering.
 mod typography;
 pub use typography::{TextVariant, icons::Icon};

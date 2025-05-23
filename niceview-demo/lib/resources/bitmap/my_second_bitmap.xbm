@@ -1,0 +1,4 @@
+#define my_second_bitmap_width 4
+#define my_second_bitmap_height 4
+static unsigned char my_second_bitmap_bits[] = {
+   0x0e, 0x0e, 0x0e, 0x06 };
