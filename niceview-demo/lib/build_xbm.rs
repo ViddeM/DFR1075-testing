@@ -1,9 +1,13 @@
-use proc_macro2::TokenStream;
-use std::{fs, io::Write, path::Path, str::Lines};
+use proc_macro2::{Literal, TokenStream};
+use rust_format::{Formatter, RustFmt};
+use std::{
+    fs,
+    io::Write,
+    path::Path,
+    str::{FromStr, Lines},
+};
 
 use quote::quote;
-
-use my_image::Image;
 
 #[path = "src/image.rs"]
 mod my_image;
@@ -35,8 +39,8 @@ pub fn generate_for_xbm_file(file_path: &Path, output_file_name: &'static str) {
     // Skip the actual static unsigned char line as it contains no data.
     next_starting_with(&mut lines, C_STATIC_UNASIGNED_CHAR).expect("Unable to find xbm data");
 
-    let remainer = lines.collect::<String>();
-    let pixels = remainer
+    let remaing = lines.collect::<String>();
+    let pixels = remaing
         .strip_suffix("};")
         .expect("Failed to strip suffix of xbm file");
 
@@ -53,7 +57,15 @@ pub fn generate_for_xbm_file(file_path: &Path, output_file_name: &'static str) {
     let rows: TokenStream = image_bytes
         .chunks_exact(byte_width)
         .map(|s| {
-            let a = s.iter().map(|u| quote! { #u, }).collect::<TokenStream>();
+            let a = s
+                .iter()
+                .map(|u| {
+                    // TODO: This is a workaround in order to get the literal in hexadecimal format but there should be a better way of doing this.
+                    let lit = Literal::from_str(&format!("0x{u:02x}"))
+                        .expect("String to be valid (we just created it?)");
+                    quote! { #lit, }
+                })
+                .collect::<TokenStream>();
             quote! { [ #a ], }
         })
         .collect();
@@ -67,16 +79,20 @@ pub fn generate_for_xbm_file(file_path: &Path, output_file_name: &'static str) {
     }
     .to_string();
 
+    let formatted_output = RustFmt::default()
+        .format_str(&output)
+        .expect("Failed to format output");
+
     let output_file_path = format!("{IMAGE_OUTPUT_DIR}/{output_file_name}");
     let mut file =
         fs::File::create(output_file_path).expect("Failed to create image rust file output");
 
-    file.write_all(output.as_bytes())
+    file.write_all(formatted_output.as_bytes())
         .expect("Failed to write rust file for image");
 }
 
 fn convert_image_width_to_byte_width(image_width: usize) -> usize {
-    (image_width + (8 - (image_width % 8))) / 8
+    (image_width + ((8 - (image_width % 8)) % 8)) / 8
 }
 
 fn next_starting_with<'a>(lines: &'a mut Lines<'_>, prefix: &'static str) -> Result<&'a str, ()> {

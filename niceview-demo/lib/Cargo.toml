@@ -13,3 +13,4 @@ zerocopy = { version = "0.8.25", features = ["derive", "zerocopy-derive"] }
 eg-font-converter = { git = "https://github.com/embedded-graphics/bdf", rev = "1527e39966d3d7fca698c29699752fbb66ae5bfa" }
 quote = "1.0.40"
 proc-macro2 = "1.0.95"
+rust-format = "0.3.4"
