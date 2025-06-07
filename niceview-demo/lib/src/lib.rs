@@ -14,9 +14,11 @@ mod image;
 mod images;
 /// Text rendering.
 mod typography;
-pub use typography::{TextVariant, icons::Icon};
+pub use typography::TextVariant;
 
 use typography::font_for_variant;
+
+pub use crate::images::generated::Icon;
 
 /// A display used on the keyboard.
 #[allow(async_fn_in_trait)]
@@ -80,11 +82,14 @@ pub trait KeyboardDisplay {
 
     /// Draw an icon starting at the provided x and y positions.
     fn draw_icon(&mut self, icon: Icon, start_x: usize, start_y: usize) {
-        use typography::icons::get_pixels_for_icon;
-
-        let pixels = get_pixels_for_icon(&icon);
-        for (ix, iy) in pixels {
-            self.draw_pixel(start_x + ix, start_y + iy, Color::Black);
+        for (x, y, bits) in icon.get_image().into_iter() {
+            for i in 0..8 {
+                let x = start_x + x * 8 + i;
+                let y = start_y + y;
+                if (bits >> i) & 1 == 1 {
+                    self.draw_pixel(x, y, Color::Black);
+                }
+            }
         }
     }
 }

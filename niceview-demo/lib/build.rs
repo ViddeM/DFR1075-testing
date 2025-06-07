@@ -1,12 +1,10 @@
-use std::path::Path;
-
 use build_xbm::generate_for_xbm_file;
 use eg_font_converter::{FontConverter, Mapping};
 
+use crate::build_xbm::generate_mod_file;
+
 const RAW_FONT_DIR: &'static str = "./resources/fonts/bdf";
 const FONT_OUTPUT_DIR: &'static str = "./src/typography/generated/";
-
-const RAW_IMAGE_DIR: &'static str = "./resources/bitmap";
 
 mod build_xbm;
 
@@ -16,10 +14,13 @@ fn main() {
     load_font("Tamzen10x20b", "tamzen_10x20b");
     load_font("5x7", "small_5x7");
 
-    let image_path = format!("{RAW_IMAGE_DIR}/my_first_bitmap.xbm");
-    let image_path = Path::new(&image_path);
-
-    generate_for_xbm_file(image_path, "my_file.rs");
+    generate_for_xbm_file("battery_full", "battery_full");
+    generate_for_xbm_file("battery_three_quarter", "battery_three_quarter");
+    generate_for_xbm_file("battery_half", "battery_half");
+    generate_for_xbm_file("battery_quarter", "battery_quarter");
+    generate_for_xbm_file("bluetooth", "bluetooth_connected");
+    generate_for_xbm_file("no_bluetooth", "bluetooth_disconnected");
+    generate_mod_file();
 
     println!("cargo:rerun-if-changed=build.rs")
 }
