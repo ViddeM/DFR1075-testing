@@ -14,10 +14,6 @@ pub struct Image<const IMAGE_WIDTH: usize, const BYTE_WIDTH: usize, const HEIGHT
 impl<const IMAGE_WIDTH: usize, const BYTE_WIDTH: usize, const HEIGHT: usize>
     Image<IMAGE_WIDTH, BYTE_WIDTH, HEIGHT>
 {
-    // pub fn iter(&self) -> impl Iterator<Item = impl Iterator<Item = &u8>> {
-    //     self.rows.iter().map(|r| r.iter())
-    // }
-
     pub fn to_iterator<'a>(&'static self) -> ImageIterator<'a> {
         ImageIterator {
             byte_width: BYTE_WIDTH,
