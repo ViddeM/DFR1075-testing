@@ -7,6 +7,7 @@
 //! ```
 //!
 //! HEIGHT = the height of the image in pixels.
+#[allow(unused)]
 pub struct Image<const IMAGE_WIDTH: usize, const BYTE_WIDTH: usize, const HEIGHT: usize> {
     pub rows: [[u8; BYTE_WIDTH]; HEIGHT],
 }
@@ -14,6 +15,7 @@ pub struct Image<const IMAGE_WIDTH: usize, const BYTE_WIDTH: usize, const HEIGHT
 impl<const IMAGE_WIDTH: usize, const BYTE_WIDTH: usize, const HEIGHT: usize>
     Image<IMAGE_WIDTH, BYTE_WIDTH, HEIGHT>
 {
+    #[allow(unused)]
     pub fn to_iterator<'a>(&'static self) -> ImageIterator<'a> {
         ImageIterator {
             byte_width: BYTE_WIDTH,
