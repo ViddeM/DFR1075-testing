@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
+#![allow(unreachable_code)]
 
+mod nice_view;
 mod rng;
 
 use core::cell::RefCell;
@@ -19,14 +21,18 @@ use embassy_time::{Duration, Timer};
 use embedded_io::Write;
 use esp_backtrace as _;
 use esp_hal::{
-    gpio::{Input, Pull},
+    dma::{Dma, DmaTxBuf},
+    gpio::{Input, Level, Output, Pull},
     prelude::*,
     rng::Rng,
+    spi::{self, master::Spi, SpiMode},
     time,
     timer::timg::TimerGroup,
 };
 use esp_println::println;
 use esp_wifi::ble::controller::BleConnector;
+use fugit::HertzU32;
+use nice_view::NiceView;
 use rng::RngWrapper;
 
 extern crate alloc;
@@ -150,11 +156,13 @@ async fn main(spawner: Spawner) -> ! {
     let systimer = SystemTimer::new(peripherals.SYSTIMER).split::<Target>();
     esp_hal_embassy::init(systimer.alarm0);
 
+    let timg0 = TimerGroup::new(peripherals.TIMG0);
+
+    let dma = Dma::new(peripherals.DMA);
+
     esp_alloc::heap_allocator!(72 * 1024);
 
     //spawner.must_spawn(ticktock());
-
-    let timg0 = TimerGroup::new(peripherals.TIMG0);
 
     log::warn!("WARN");
     log::error!("ERROR");
@@ -166,6 +174,39 @@ async fn main(spawner: Spawner) -> ! {
     let mut button = Input::new(peripherals.GPIO9, Pull::Up);
     button.wait_for_low().await;
     log::info!("Let's go!");
+
+    // 22, 21,  20
+    // CS, SCK, MOSI
+    let mut spi_config = spi::master::Config::default();
+    spi_config.frequency = HertzU32::MHz(1);
+    spi_config.mode = SpiMode::Mode0;
+
+    // NiceView cs is active high. I think...
+    let cs = Output::new(peripherals.GPIO22, Level::Low);
+    let spi = Spi::new_with_config(peripherals.SPI2, spi_config)
+        .with_sck(peripherals.GPIO21)
+        .with_mosi(peripherals.GPIO20)
+        //.with_cs(peripherals.GPIO22)
+        .into_async()
+        .with_dma(
+            dma.channel0
+                .configure(false, esp_hal::dma::DmaPriority::Priority0),
+        );
+
+    let mut nice_view = NiceView::new(spi, cs);
+
+    log::info!("wait...");
+    Timer::after(Duration::from_secs(2)).await;
+
+    log::info!("drawing...");
+    nice_view.clear_display().await;
+    for n in 0.. {
+        Timer::after(Duration::from_millis(30)).await;
+        nice_view.draw_test(n & 1 == 0).await;
+    }
+    log::info!("done...");
+
+    Timer::after(Duration::from_secs(2)).await;
 
     let rng = Rng::new(peripherals.RNG);
     let init = esp_wifi::init(timg0.timer0, rng.clone(), peripherals.RADIO_CLK)

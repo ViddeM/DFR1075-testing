@@ -7,10 +7,12 @@ use bt_hci::controller::ExternalController;
 use embassy_executor::Spawner;
 use embassy_time::Timer;
 use esp_backtrace as _;
-use esp_hal::{prelude::*, rng::Rng, timer::timg::TimerGroup};
+use esp_hal::{gpio::Input, prelude::*, rng::Rng, timer::timg::TimerGroup};
 use esp_println as _;
 use esp_wifi::ble::controller::BleConnector;
 use futures::{select_biased, FutureExt};
+use rand_chacha::ChaCha8Rng;
+use rand_core::SeedableRng;
 use trouble_host::{
     gap::{GapConfig, PeripheralConfig},
     prelude::*,
@@ -50,17 +52,18 @@ async fn main(_s: Spawner) {
     defmt::trace!("TRACE");
     defmt::info!("INFO");
 
+    defmt::info!("Press button to start");
+    let mut button = Input::new(peripherals.GPIO9, esp_hal::gpio::Pull::Up);
+    button.wait_for_low().await;
+
     defmt::info!("Let's go!");
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
 
     defmt::info!("Initializing esp_wifi");
-    let init = esp_wifi::init(
-        timg0.timer0,
-        Rng::new(peripherals.RNG),
-        peripherals.RADIO_CLK,
-    )
-    .expect("BAIL (hilfe!)");
+    let rng = Rng::new(peripherals.RNG);
+    let init =
+        esp_wifi::init(timg0.timer0, rng.clone(), peripherals.RADIO_CLK).expect("BAIL (hilfe!)");
     defmt::info!("...done");
 
     // TODO: Not sure why the second one tbh.
@@ -81,17 +84,21 @@ async fn main(_s: Spawner) {
         address
     );
 
-    let (_stack, bt_peripheral, _, mut runner) = host.set_random_address(address).build();
+    let (stack, bt_peripheral, _, mut runner) = host.set_random_address(address).build();
 
-    let server = MyFirstBTEServer::new_with_config(GapConfig::Peripheral(PeripheralConfig {
-        name: "Tux sux",
-        appearance: &appearance::HUMIDIFIER, // TODO: keyboard
-    }))
+    let server = MyFirstBTEServer::new_with_config(
+        stack,
+        GapConfig::Peripheral(PeripheralConfig {
+            name: "Tux sux",
+            appearance: &appearance::HUMIDIFIER, // TODO: keyboard
+        }),
+    )
     .expect("Failed to create BTE server");
 
+    let rng = ChaCha8Rng::from_rng(rng).expect("Failed to initialize RNG");
     defmt::info!("Starting advertising business making people by scamming people that needs medicine! #LoveCorporateAmerica");
     select_biased! {
-        r = runner.run().fuse() => {
+        r = runner.run(rng).fuse() => {
             defmt::error!("BLE runner exited with {}", defmt::Debug2Format(&r));
         }
         r = advertise_task(bt_peripheral, &server).fuse() => {
@@ -122,7 +129,7 @@ struct BatteryService {
 
 async fn advertise_task<C: Controller>(
     mut peripheral: Peripheral<'_, C>,
-    server: &MyFirstBTEServer<'_>,
+    server: &MyFirstBTEServer<'_, '_>,
 ) -> Result<(), BleHostError<C::Error>> {
     let mut adv_data = [0; 31];
     AdStructure::encode_slice(
@@ -158,31 +165,27 @@ async fn advertise_task<C: Controller>(
     }
 }
 
-async fn conn_task(server: &MyFirstBTEServer<'_>, conn: &Connection<'_>) {
+async fn conn_task(server: &MyFirstBTEServer<'_, '_>, conn: &Connection<'_>) {
     loop {
         match conn.next().await {
             ConnectionEvent::Disconnected { reason } => {
                 defmt::info!("[gatt] disconnected: {:?}", reason);
                 break;
             }
-            ConnectionEvent::Gatt { data } => match data.process(server).await {
-                Ok(Some(GattEvent::Read(event))) => {
-                    if event.handle() == server.battery.level.handle {
+            ConnectionEvent::Gatt {
+                connection: _,
+                event,
+            } => match event {
+                GattEvent::Read { value_handle } => {
+                    if value_handle == server.battery.level.handle {
                         let value = server.get(&server.battery.level);
                         defmt::info!("[gatt] Read Event to Level Characteristic: {:?}", value);
                     }
                 }
-                Ok(Some(GattEvent::Write(event))) => {
-                    if event.handle() == server.battery.level.handle {
-                        defmt::info!(
-                            "[gatt] Write Event to battery level characteristic: {}",
-                            event.data()
-                        );
+                GattEvent::Write { value_handle } => {
+                    if value_handle == server.battery.level.handle {
+                        defmt::info!("[gatt] Write Event to battery level characteristic",);
                     }
-                }
-                Ok(None) => {}
-                Err(e) => {
-                    defmt::warn!("[gatt] error processing event: {:?}", e);
                 }
             },
         }
@@ -190,13 +193,13 @@ async fn conn_task(server: &MyFirstBTEServer<'_>, conn: &Connection<'_>) {
 }
 
 /// Example task to use the BLE notifier interface.
-async fn counter_task(server: &MyFirstBTEServer<'_>, conn: &Connection<'_>) {
+async fn counter_task(server: &MyFirstBTEServer<'_, '_>, conn: &Connection<'_>) {
     let mut tick: u8 = 0;
     let level = server.battery.level;
     loop {
         tick = tick.wrapping_add(1);
         defmt::info!("[adv] notifying connection of tick {}", tick);
-        if level.notify(server, conn, &tick).await.is_err() {
+        if server.notify(&level, conn, &tick).await.is_err() {
             defmt::info!("[adv] error notifying connection");
             break;
         };

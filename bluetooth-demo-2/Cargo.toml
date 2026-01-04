@@ -6,11 +6,16 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [patch.crates-io]
-esp-wifi-sys = { git = "https://github.com/hulthe/esp-wifi-sys.git", branch = "cstr_cchar"}
-esp-hal = { git = "https://github.com/hulthe/esp-hal.git", branch = "fuckaroo" }
-esp-hal-embassy = { git = "https://github.com/hulthe/esp-hal.git", branch = "fuckaroo" }
-esp-wifi = { git = "https://github.com/hulthe/esp-hal.git", branch = "fuckaroo" }
-esp-alloc = { git = "https://github.com/hulthe/esp-hal.git", branch = "fuckaroo" }
+#esp-wifi-sys = { git = "https://github.com/hulthe/esp-wifi-sys.git", branch = "cstr_cchar"}
+#esp-hal = { git = "https://github.com/hulthe/esp-hal.git", branch = "fuckaroo" }
+#esp-hal-embassy = { git = "https://github.com/hulthe/esp-hal.git", branch = "fuckaroo" }
+#esp-wifi = { git = "https://github.com/hulthe/esp-hal.git", branch = "fuckaroo" }
+#esp-alloc = { git = "https://github.com/hulthe/esp-hal.git", branch = "fuckaroo" }
+
+esp-hal = { git = "https://github.com/hulthe/esp-hal.git", branch = "main" }
+esp-hal-embassy = { git = "https://github.com/hulthe/esp-hal.git", branch = "main" }
+esp-wifi = { git = "https://github.com/hulthe/esp-hal.git", branch = "main" }
+esp-alloc = { git = "https://github.com/hulthe/esp-hal.git", branch = "main" }
 
 [dependencies]
 esp-backtrace = { version = "0.14.2", features = [
@@ -19,7 +24,7 @@ esp-backtrace = { version = "0.14.2", features = [
     "panic-handler",
     "defmt",
 ] }
-esp-hal = { version = "0.22.0", features = [ "esp32c6" ] }
+esp-hal = { version = "0.22.0", features = [ "esp32c6", "unstable" ] }
 esp-println = { version = "0.12.0", features = ["esp32c6", "defmt-espflash"] }
 embedded-io = "0.6.1"
 esp-wifi = { version = "0.11.0", features = [
@@ -29,18 +34,20 @@ esp-wifi = { version = "0.11.0", features = [
     "defmt",
 ] }
 heapless = { version = "0.8.0", default-features = false }
-trouble-host = { git = "https://github.com/embassy-rs/trouble", package = "trouble-host", rev = "07fa452e836f07a302596edb6a61e060d242e4ea", features = [ "defmt", "gatt" ] }
-embassy-executor = { version = "0.6.3", features = ["nightly"] }
+#trouble-host = { git = "https://github.com/embassy-rs/trouble", package = "trouble-host", rev = "07fa452e836f07a302596edb6a61e060d242e4ea", features = [ "defmt", "gatt" ] }
+trouble-host = { path = "../../trouble/host", features = [ "defmt", "gatt" ] }
+embassy-executor = { version = "0.7.0", features = ["nightly"] }
 esp-hal-embassy = { version = "0.5.0", features = ["esp32c6"] }
 static_cell = "2.1.0"
 bt-hci = "0.1.1"
 embassy-sync = { version = "0.6.0" }
 embassy-futures = { version = "0.1.1" }
-embassy-time = { version = "0.3.2", features = ["generic-queue"] }
+embassy-time = { version = "0.4.0" }
 esp-alloc = "0.5.0"
 rand_core = "0.6.4"
 defmt = "0.3.10"
 futures = { version = "0.3.31", default-features = false, features = ["async-await"] }
+rand_chacha = { version = "0.3.1", default-features = false }
 
 [profile.dev]
 # Rust debug is too slow.
