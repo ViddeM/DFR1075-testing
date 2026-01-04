@@ -60,11 +60,10 @@ async fn main(_spawner: Spawner) -> ! {
     spi_config.read_bit_order = SpiBitOrder::LSBFirst; // probably useless
 
     // NiceView cs is active high. I think...
-    let cs = Output::new(peripherals.GPIO22, Level::Low);
+    let cs = Output::new(peripherals.GPIO23, Level::Low);
     let spi = Spi::new_with_config(peripherals.SPI2, spi_config)
-        .with_sck(peripherals.GPIO21)
-        .with_mosi(peripherals.GPIO20)
-        //.with_cs(peripherals.GPIO22)
+        .with_sck(peripherals.GPIO22)
+        .with_mosi(peripherals.GPIO21)
         .into_async()
         .with_dma(
             dma.channel0
