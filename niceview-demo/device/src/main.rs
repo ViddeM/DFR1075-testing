@@ -15,7 +15,7 @@ use esp_hal::{
 };
 use fugit::HertzU32;
 use nice_view::NiceView;
-use niceview_lib::{color::Color, KeyboardDisplay};
+use niceview_lib::{color::Color, KeyboardDisplay, TextVariant};
 
 extern crate alloc;
 
@@ -76,10 +76,7 @@ async fn main(_spawner: Spawner) -> ! {
     nice_view.clear_display().await;
     nice_view.fill_white();
 
-    let text = "HELLO WORLD!";
-    for (i, c) in text.chars().enumerate() {
-        nice_view.draw_char_at(c, 10 + i * 6, 10);
-    }
+    nice_view.draw_text("HELLO WORLD!", 10, 10, TextVariant::Regular);
 
     nice_view.flush().await;
 
