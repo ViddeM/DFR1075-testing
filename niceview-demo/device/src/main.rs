@@ -6,6 +6,7 @@ mod nice_view;
 mod rng;
 
 use embassy_executor::Spawner;
+use embassy_time::{Duration, Timer};
 use esp_backtrace as _;
 use esp_hal::{
     dma::Dma,
@@ -15,7 +16,7 @@ use esp_hal::{
 };
 use fugit::HertzU32;
 use nice_view::NiceView;
-use niceview_lib::{color::Color, KeyboardDisplay, TextVariant};
+use niceview_lib::{color::Color, Icon, KeyboardDisplay, TextVariant};
 
 extern crate alloc;
 
@@ -77,7 +78,33 @@ async fn main(_spawner: Spawner) -> ! {
 
     nice_view.draw_text("HELLO WORLD!", 10, 10, TextVariant::Regular);
 
+    nice_view.draw_icon(Icon::BatteryFull, 40, 40);
+
     nice_view.flush().await;
+
+    let mut mode = 0;
+    loop {
+        nice_view.fill_white();
+
+        let icon = match mode {
+            0 => Icon::BatteryFull,
+            1 => Icon::BatteryThreeQuarter,
+            2 => Icon::BatteryHalf,
+            _ => Icon::BatteryQuarter,
+        };
+
+        mode += 1;
+        if mode > 3 {
+            mode = 0;
+        }
+
+        log::info!("ITERATING TO {mode}");
+
+        nice_view.draw_icon(icon, 40, 40);
+        nice_view.flush().await;
+
+        Timer::after(Duration::from_millis(1200)).await;
+    }
 
     /*
     log::info!("BOUNCE DA BALL");
@@ -121,6 +148,5 @@ async fn main(_spawner: Spawner) -> ! {
     */
 
     log::info!("exit");
-
     loop {}
 }
