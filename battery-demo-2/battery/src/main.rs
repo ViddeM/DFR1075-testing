@@ -1,21 +1,31 @@
 #![no_std]
 #![no_main]
 
+mod nice_view;
+
 use core::cmp::{max, min};
 
 use embassy_executor::Spawner;
 use embassy_time::Duration;
 use esp_backtrace as _;
 use esp_hal::{
-    analog::adc::{Adc, AdcCalCurve, AdcCalScheme, AdcConfig, Attenuation},
+    Blocking,
+    analog::adc::{
+        Adc, AdcCalBasic, AdcCalCurve, AdcCalLine, AdcCalScheme, AdcConfig, AdcPin, Attenuation,
+    },
     clock::CpuClock,
-    gpio::{Input, InputConfig, Io, Pin, Pull},
+    gpio::{Input, InputConfig, Pull},
     interrupt::software::SoftwareInterruptControl,
-    peripherals::{self, ADC1, GPIO, GPIO0},
+    peripherals::{ADC1, GPIO0},
     timer::timg::TimerGroup,
 };
+use niceview_lib::KeyboardDisplay;
 
-const FOUR_THOUSAND_NINETY_FIVE: u16 = 4095;
+use crate::nice_view::NiceView;
+use niceview_lib::TextVariant;
+
+const U12_MAX: u16 = 4095;
+const MAX_VOLTAGE_READ: f32 = 6.6;
 
 #[esp_rtos::main]
 async fn main(_spawner: Spawner) -> ! {
@@ -45,18 +55,101 @@ async fn main(_spawner: Spawner) -> ! {
     button.wait_for_low().await;
     log::info!("Let's go!");
 
+    /*
+     * SCREEN STUFF BEGIN
+     */
+    // 22, 21,  20
+    // CS, SCK, MOSI
+    // Required SPI config for the NiceView
+    let spi_config = esp_hal::spi::master::Config::default()
+        .with_frequency(esp_hal::time::Rate::from_mhz(1))
+        .with_mode(esp_hal::spi::Mode::_0)
+        .with_write_bit_order(esp_hal::spi::BitOrder::LsbFirst)
+        .with_read_bit_order(esp_hal::spi::BitOrder::LsbFirst); // probably useless
+
+    // NiceView cs is active high. I think...
+    let cs = esp_hal::gpio::Output::new(
+        peripherals.GPIO23,
+        esp_hal::gpio::Level::Low,
+        esp_hal::gpio::OutputConfig::default(),
+    );
+
+    let spi = esp_hal::spi::master::Spi::new(peripherals.SPI2, spi_config)
+        .expect("SPI config is valid")
+        .with_sck(peripherals.GPIO22)
+        .with_mosi(peripherals.GPIO21)
+        .with_dma(peripherals.DMA_CH0)
+        .into_async();
+
+    let mut nice_view = NiceView::new(spi, cs);
+
+    /*
+     * SCREEN STUFF END
+     */
+    let mut adc_config = AdcConfig::new();
+    let mut pin = adc_config.enable_pin_with_cal(peripherals.GPIO0, Attenuation::_11dB);
+    let mut adc = Adc::new(peripherals.ADC1, adc_config);
+
+    nice_view.clear_display().await;
+    nice_view.fill_white();
+    nice_view.flush().await;
+
     loop {
-        match sample(&mut peripherals.GPIO0, &mut peripherals.ADC1) {
+        nice_view.fill_white();
+        // match sample(&mut peripherals.GPIO0, &mut peripherals.ADC1) {
+        //     Ok(voltage) => {
+        //         log::info!("Voltage {voltage}");
+        //     }
+        //     Err(err) => {
+        //         log::error!("Oh noes, failed to sample battery level {err}");
+        //     }
+        // }
+
+        let voltage = match read_battery(&mut adc, &mut pin) {
             Ok(voltage) => {
                 log::info!("Voltage {voltage}");
+                voltage
             }
             Err(err) => {
                 log::error!("Oh noes, failed to sample battery level {err}");
+                continue;
             }
-        }
+        };
 
+        let str = heapless::format!(20; "{:.6}V", voltage);
+
+        nice_view.draw_text(
+            str.as_deref().unwrap_or("ERR"),
+            10,
+            20,
+            TextVariant::LargeBold,
+        );
+
+        nice_view.flush().await;
         embassy_time::block_for(Duration::from_millis(200));
     }
+}
+
+fn read_battery<'a>(
+    adc: &mut Adc<'a, ADC1<'a>, Blocking>,
+    pin: &mut AdcPin<GPIO0<'a>, ADC1<'a>, AdcCalLine<ADC1<'a>>>,
+) -> Result<f32, &'static str> {
+    let raw = adc.read_oneshot(pin).map_err(|err| {
+        log::error!("FAiled to read battery level {err:?}");
+        "Failed to read battery level"
+    })?;
+
+    let float_val = ((raw as f32) / (U12_MAX as f32)) * MAX_VOLTAGE_READ;
+
+    let s = AdcCalBasic::<ADC1>::new_cal(Attenuation::_11dB);
+
+    log::info!(
+        "RAW: {raw} || Float: {float_val} || Adc cal {} || Adc val {}",
+        s.adc_cal(),
+        s.adc_val(raw)
+    );
+
+    Ok(float_val)
 }
 
 fn sample(pin: &mut GPIO0<'static>, adc: &mut ADC1) -> Result<f32, &'static str> {
@@ -168,4 +261,17 @@ fn sample(pin: &mut GPIO0<'static>, adc: &mut ADC1) -> Result<f32, &'static str>
 
     log::info!("Autorange final: {final_result:.6}V");
     Ok(final_result)
+}
+
+#[repr(u8)]
+#[allow(unused)]
+enum GpioECommand {
+    InputPort0 = 0,
+    InputPort1 = 1,
+    OuputPort0 = 2,
+    OuputPort1 = 3,
+    PolarityInversionPort0 = 4,
+    PolarityInversionPort1 = 5,
+    ConfigurationPort0 = 6,
+    ConfigurationPort1 = 7,
 }
